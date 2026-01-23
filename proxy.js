@@ -5,9 +5,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Allow CORS for your frontend
-app.use(cors({
-  origin: ['https://edenraich.github.io', 'http://localhost:3000', 'https://downeastswims.digital.brynmawr.edu']
-}));
+app.use(cors());
+
 
 // --- CACHE & CONCURRENCY CONTROL ---
 const DEVICE_TTL_MS = 60 * 1000;
