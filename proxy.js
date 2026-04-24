@@ -130,6 +130,15 @@ app.get('/bust-cache', (req, res) => {
     res.json({ ok: true, message: 'Cache cleared' });
 });
 
+app.get('/raw', async (req, res) => {
+    const sn = req.query.device_sn || 'z6-29887';
+    const url = `https://zentracloud.com/api/v3/get_readings/?device_sn=${sn}&per_page=3&start_date=2026-04-23`;
+    const response = await fetch(url, {
+        headers: { 'Authorization': 'Token d445bff30fd09944398c70521da24e19f6c11abf' }
+    });
+    const json = await response.json();
+    res.json(json);
+});
 app.get('/', (req, res) => res.send('Zentra Proxy Server is running.'));
 
 app.listen(PORT, () => console.log(`Proxy running at http://localhost:${PORT}`));
