@@ -6,9 +6,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 
-// --- CACHE & CONCURRENCY CONTROL ---
-const DEVICE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const deviceCache = new Map(); // key: `${sn}__${startDate}` -> { data, fetchedAt }
+const DEVICE_TTL_MS = 5 * 60 * 1000;
+const deviceCache = new Map();
 const inFlight = new Map();
 
 function cacheKey(sn, startDate) {
@@ -60,15 +59,30 @@ async function fetchFromZentra(sn, perPage, startDate) {
         return { device_sn: sn, error: 'Failed to fetch', status: response.status, body: text };
     }
 
-    const data = await response.json();
+    const raw = await response.json();
+
+    // Zentra de-duplicates by sensor name and may return the wrong port.
+    // Re-key duplicate sensor names by appending port number so all ports come through.
+    const originalData = raw.data || {};
+    const reKeyedData = {};
+    Object.keys(originalData).forEach(key => {
+        const arr = originalData[key];
+        if (!Array.isArray(arr)) { reKeyedData[key] = arr; return; }
+        arr.forEach(entry => {
+            const port = entry.metadata && entry.metadata.port_number != null
+                ? entry.metadata.port_number : null;
+            const newKey = port != null ? `${key} (Port ${port})` : key;
+            reKeyedData[newKey] = [entry];
+        });
+    });
+
     return {
         device_sn: sn,
-        pagination: data.pagination,
-        data: data.data
+        pagination: raw.pagination,
+        data: reKeyedData
     };
 }
 
-// --- ROUTE ---
 app.get('/zentra', async (req, res) => {
     try {
         let deviceSNs = req.query.device_sn;
@@ -92,7 +106,6 @@ app.get('/zentra', async (req, res) => {
     }
 });
 
-// Cache bust endpoint
 app.get('/bust-cache', (req, res) => {
     deviceCache.clear();
     inFlight.clear();
